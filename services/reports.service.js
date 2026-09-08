@@ -5,32 +5,16 @@ import path from 'path';
 
 class ReportsService {
   async createReport(data) {
-    try {
-      console.log('Service received data:', data);
-      
-      if (!data.student_name || !data.control_number || !data.pdf_route) {
-        throw new Error('Missing required fields: student_name, control_number, and pdf_route are required');
-      }
+    // Los campos obligatorios y el PDF ya los verifica el controlador, que es
+    // quien arma `data` a partir de las partes multipart.
+    const keywordsJson = JSON.stringify(data.keywords || []);
 
-      const keywordsJson = JSON.stringify(data.keywords || []);
-      const reportData = { ...data, keywordsJson };
-      
-      console.log('Calling repository with data:', reportData);
+    const [result, error] = await catchError(
+      ReportsRepository.createReport({ ...data, keywordsJson })
+    );
 
-      const [result, error] = await catchError(
-        ReportsRepository.createReport(reportData)
-      );
-      
-      if (error) {
-        console.error('Repository error:', error);
-        throw error;
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('Service error:', error);
-      throw error;
-    }
+    if (error) throw error;
+    return result;
   }
 
   async getReports() {
