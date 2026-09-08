@@ -1,0 +1,22 @@
+-- Migraciones de esquema para bases de datos YA existentes.
+--
+-- .db-tables solo crea tablas que faltan ("create table if not exists"), asi
+-- que no puede modificar una tabla que ya existe. Este archivo cubre ese hueco:
+-- lo aplica init-db/sincronizar-base-de-datos.sh en cada despliegue, antes de
+-- los procedimientos.
+--
+-- REGLAS:
+--  - Toda sentencia debe ser idempotente (MariaDB soporta "if not exists" /
+--    "if exists" en ALTER TABLE). Este archivo se reaplica en cada despliegue.
+--  - Las migraciones se agregan al final, nunca se editan ni se borran las
+--    anteriores: un despliegue viejo tiene que poder recorrerlas todas.
+--  - Los cambios tambien deben reflejarse en .db-tables, para que una
+--    instalacion nueva quede igual que una migrada.
+
+-- 2026-09: "Area de Trabajo".
+-- El frontend capturaba work_area, lo mostraba en la tabla de reportes y
+-- filtraba por el, y el repositorio lo enviaba a create_report, pero la columna
+-- nunca existio: la llamada mandaba un argumento de mas y MariaDB rechazaba
+-- todos los altas de reporte con un error que llegaba al navegador como 500.
+alter table residencias.reports
+    add column if not exists work_area varchar(100) default null after report_title;

@@ -1,0 +1,16 @@
+# Sobrescritura opcional: usa las imagenes publicadas en ghcr.io en vez de
+# construirlas desde el codigo local.
+#
+# Uso:  ./desplegar.sh --con-registro
+#
+# Requiere acceso al registro. Los paquetes de ghcr.io/artdryy son privados:
+# sin `docker login ghcr.io` el pull falla con "denied". Por eso el despliegue
+# por defecto construye en local y este archivo es opcional.
+services:
+  backend:
+    build: !reset null
+    image: ghcr.io/artdryy/be-graduate-report-manager:latest
+
+  frontend:
+    build: !reset null
+    image: ghcr.io/artdryy/fe-graduate-report-manager:latest
