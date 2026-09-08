@@ -14,18 +14,6 @@ class ReportsRepository {
     keywordsJson,
   }) {
     try {
-      console.log('Repository executing createReport with params:', {
-        student_name,
-        control_number,
-        major,
-        report_title,
-        work_area,
-        pdf_route,
-        company_id,
-        semester_id,
-        keywordsJson,
-      });
-
       await sequelize.query(
         'call residencias.create_report(?, ?, ?, ?, ?, ?, ?, ?, ?, @p_report_id);',
         {
@@ -60,7 +48,6 @@ class ReportsRepository {
 
   async getReports() {
     try {
-      console.log('Repository executing getReports');
       const result = await sequelize.query('CALL residencias.get_reports();', {
         type: QueryTypes.SELECT,
       });
@@ -74,6 +61,7 @@ class ReportsRepository {
   async updateReport({
     report_id,
     student_name,
+    major,
     report_title,
     work_area,
     company_id,
@@ -82,16 +70,17 @@ class ReportsRepository {
     keywordsJson,
   }) {
     const result = await sequelize.query(
-      'CALL residencias.update_report(?, ?, ?, ?, ?, ?, ?, ?);',
+      'CALL residencias.update_report(?, ?, ?, ?, ?, ?, ?, ?, ?);',
       {
         replacements: [
           report_id,
           student_name,
+          major,
           report_title,
           work_area,
           company_id,
           semester_id,
-          pdf_route, 
+          pdf_route ?? null,
           keywordsJson,
         ],
         type: QueryTypes.SELECT,

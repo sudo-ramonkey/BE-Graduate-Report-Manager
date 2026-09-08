@@ -1,27 +1,22 @@
-# Sobrescritura para desarrollo: construye las imagenes desde el codigo local
-# en vez de descargarlas de ghcr.io.
+# Sobrescritura para desarrollo: levanta un segundo despliegue, aislado del de
+# produccion, para poder probar cambios sin tocarlo.
 #
 # Uso:
 #   docker compose -p residencias-dev -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 #
-# Usa nombres de contenedor y puerto propios para poder convivir con un
-# despliegue de produccion en la misma maquina. El despliegue normal
-# (desplegar.sh / docker compose up) no usa este archivo.
+# La construccion desde el codigo local ya no vive aqui: docker-compose.yml
+# construye ambas imagenes por defecto. Este archivo solo cambia nombres de
+# contenedor, etiquetas de imagen y el puerto, para poder convivir con un
+# despliegue de produccion en la misma maquina.
 services:
   mariadb:
     container_name: residencias-db-dev
 
   backend:
-    build:
-      context: .
     image: be-graduate-report-manager:dev
     container_name: residencias-backend-dev
 
   frontend:
-    build:
-      context: ../FE-Graduate-Report-Manager
-      args:
-        VITE_API_URL: /api
     image: fe-graduate-report-manager:dev
     container_name: residencias-frontend-dev
     ports: !override

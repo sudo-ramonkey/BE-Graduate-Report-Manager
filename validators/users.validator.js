@@ -8,7 +8,7 @@ class UsersValidator {
       email: Joi.string().email().max(100).required(),
       role_id: Joi.number().required(),
       is_active: Joi.number().valid(0, 1).default(1),
-      code: Joi.string().max(10).allow(null),
+      code: Joi.string().max(10).allow(null, ''),
     });
   }
 

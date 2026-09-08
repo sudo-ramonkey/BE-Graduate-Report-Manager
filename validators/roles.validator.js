@@ -4,7 +4,7 @@ class RolesValidator {
   createRole() {
     return Joi.object({
       role_name: Joi.string().max(100).trim().required(),
-      description: Joi.string().allow(null),
+      description: Joi.string().allow(null, ''),
     });
   }
 
@@ -16,7 +16,7 @@ class RolesValidator {
     return Joi.object({
       role_id: Joi.number().required(),
       role_name: Joi.string().max(100).trim().required(),
-      description: Joi.string().allow(null),
+      description: Joi.string().allow(null, ''),
     });
   }
 

@@ -8,7 +8,11 @@ import ReportsValidator from '../validators/reports.validator.js';
 class ReportsController {
   createReport = async (req, reply) => {
     if (!req.isMultipart()) {
-      return reply.status(400).send({ message: 'Request must be multipart/form-data' });
+      return reply.code(400).send({
+        status: false,
+        message: 'La peticion debe ser multipart/form-data',
+        data: null,
+      });
     }
 
     const parts = await req.parts();
@@ -30,28 +34,46 @@ class ReportsController {
         }
       }
     } catch (error) {
-      console.error('Failed to process multipart form:', error);
-      return reply.status(500).send({ message: `Error processing file upload: ${error.message}` });
+      req.log.error({ err: error }, 'Failed to process multipart form');
+      return reply.code(400).send({
+        status: false,
+        message: 'No se pudo procesar el archivo enviado.',
+        data: null,
+      });
     }
 
     if (!pdf_route) {
-      return reply.status(400).send({ message: 'PDF file is required.' });
+      return reply.code(400).send({
+        status: false,
+        message: 'El archivo PDF es obligatorio.',
+        data: null,
+      });
     }
 
-    try {
-      const reportData = {
-        ...data,
-        company_id: parseInt(data.company_id, 10),
-        semester_id: parseInt(data.semester_id, 10),
-        keywords: JSON.parse(data.keywords || '[]'),
-        work_area: data.work_area || null,
-        pdf_route
-      };
-      const result = await ReportsService.createReport(reportData);
-      reply.code(201).send({ status: true, message: 'Report created successfully', data: result });
-    } catch (error) {
-      reply.status(500).send({ message: 'Error creating report', error: error.message });
+    // La validacion se hace aqui y no en un preHandler: @fastify/multipart esta
+    // registrado con attachFieldsToBody: false, asi que req.body llega vacio y
+    // el helper `validate` se saltaba el esquema entero sin avisar.
+    const { error: validationError, value: datosValidados } =
+      ReportsValidator.createReport().validate(data);
+
+    if (validationError) {
+      return reply.code(400).send({
+        status: false,
+        message: validationError.details[0].message,
+        data: null,
+      });
     }
+
+    // Sin try/catch: los errores suben al manejador global, que distingue las
+    // violaciones de regla de negocio (400, con el mensaje del procedimiento)
+    // de los fallos internos (500, sin filtrar SQL al navegador).
+    const result = await ReportsService.createReport({
+      ...datosValidados,
+      work_area: datosValidados.work_area || null,
+      pdf_route,
+    });
+
+    reply.code(201).send({ status: true, message: 'Report created successfully', data: result });
   };
 
   getReports = async (req, reply) => {
@@ -66,7 +88,11 @@ updateReport = async (req, reply) => {
 
     try {
       if (!req.isMultipart()) {
-        return reply.status(400).send({ message: 'Request must be multipart/form-data' });
+        return reply.code(400).send({
+          status: false,
+          message: 'La peticion debe ser multipart/form-data',
+          data: null,
+        });
       }
 
       const parts = await req.parts();
@@ -84,8 +110,12 @@ updateReport = async (req, reply) => {
         }
       }
     } catch (error) {
-      console.error('Failed to process multipart form during update:', error);
-      return reply.status(500).send({ message: `Error processing file upload: ${error.message}` });
+      req.log.error({ err: error }, 'Failed to process multipart form during update');
+      return reply.code(400).send({
+        status: false,
+        message: 'No se pudo procesar el archivo enviado.',
+        data: null,
+      });
     }
 
     const { error: validationError } = ReportsValidator.updateReport().validate(data);

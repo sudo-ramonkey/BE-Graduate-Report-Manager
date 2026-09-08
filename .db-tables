@@ -1,4 +1,4 @@
-create table residencias.roles(
+create table if not exists residencias.roles(
 	id bigint(20) unsigned not null auto_increment,
 	role_name varchar(100) not null,
 	description text default null,
@@ -6,7 +6,7 @@ create table residencias.roles(
 	unique key uk_rolename (role_name)
 );
 
-create table residencias.companies(
+create table if not exists residencias.companies(
 	id bigint(20) unsigned not null auto_increment,
 	company_name varchar(150) not null,
 	description text default null,
@@ -17,35 +17,35 @@ create table residencias.companies(
 	unique key uk_compname (company_name)
 );
 
-create table residencias.modules(
+create table if not exists residencias.modules(
 	id bigint(20) unsigned not null auto_increment,
 	module_name varchar(20) not null,
 	primary key (id),
 	unique key uk_modname (module_name)
 );
 
-create table residencias.permissions(
+create table if not exists residencias.permissions(
 	id bigint(20) unsigned not null auto_increment,
 	permission varchar(50) not null,
 	primary key (id),
 	unique key uk_permname (permission)
 );
 
-create table residencias.semester(
+create table if not exists residencias.semester(
 	id bigint(20) unsigned not null auto_increment,
 	semester varchar (30) not null,
 	primary key (id),
 	unique key uk_semname (semester)
 );
 
-create table residencias.keywords(
+create table if not exists residencias.keywords(
 	id bigint(20) unsigned not null auto_increment,
 	keyword varchar(30) default null,
 	primary key (id),
 	unique key uk_keyname (keyword)
 );
 
-create table residencias.users (
+create table if not exists residencias.users (
 	id bigint(20) unsigned not null auto_increment,
 	user_name varchar(100) not null,
 	password varchar(255) not null,
@@ -59,12 +59,13 @@ create table residencias.users (
 	constraint fk_users_roles foreign key (role_id) references residencias.roles(id) on update cascade on delete cascade
 );
 
-create table residencias.reports (
+create table if not exists residencias.reports (
 	id bigint(20) unsigned not null auto_increment,
 	student_name varchar(100) not null,
 	control_number varchar(15) not null,
 	major varchar (100) default null,
 	report_title varchar (255) default null,
+	work_area varchar(100) default null,
 	pdf_route varchar(500) default null,
 	company_id bigint(20) unsigned not null,
 	semester_id bigint (20) unsigned not null,
@@ -74,7 +75,7 @@ create table residencias.reports (
 	constraint fk_semreport foreign key (semester_id) references residencias.semester(id)
 );
 
-create table residencias.user_refresh_tokens(
+create table if not exists residencias.user_refresh_tokens(
 	id bigint(20) unsigned not null auto_increment,
 	user_id bigint unsigned not null,
 	token varchar(500) not null,
@@ -84,7 +85,7 @@ create table residencias.user_refresh_tokens(
 	constraint fk_userid_refresh_tokens foreign key (user_id) references residencias.users(id) on delete cascade 
 );
 
-create table residencias.roles_modules (
+create table if not exists residencias.roles_modules (
     role_id bigint(20) unsigned not null,
     module_id bigint(20) unsigned not null,
     is_visible tinyint(1) default 1,
@@ -93,7 +94,7 @@ create table residencias.roles_modules (
     constraint fk_roles_modules_module_id foreign key (module_id) references residencias.modules(id) on update cascade on delete cascade
 );
 
-create table residencias.roles_modules_permissions (
+create table if not exists residencias.roles_modules_permissions (
     role_id bigint(20) unsigned not null,
     module_id bigint(20) unsigned not null,
     permission_id bigint(20) unsigned not null,
@@ -105,7 +106,7 @@ create table residencias.roles_modules_permissions (
     constraint fk_roles_modules_permissions_permission_id foreign key (permission_id) references residencias.permissions(id) on update cascade on delete cascade
 );
 
-create table residencias.reports_keywords(
+create table if not exists residencias.reports_keywords(
 	report_id bigint(20) unsigned not null,
 	keyword_id bigint(20) unsigned not null,
 	key tk_report_id (report_id),
