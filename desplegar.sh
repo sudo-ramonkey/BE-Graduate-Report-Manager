@@ -118,15 +118,12 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 3. Levantar los servicios
+# 3. Imagenes
 # ---------------------------------------------------------------------------
 echo ""
 if [ "$USAR_REGISTRO" -eq 1 ]; then
     echo ">>> Descargando imagenes..."
     docker compose "${ARCHIVOS_COMPOSE[@]}" pull
-    echo ""
-    echo ">>> Levantando servicios..."
-    docker compose "${ARCHIVOS_COMPOSE[@]}" up -d
 else
     echo ">>> Construyendo imagenes desde el codigo local..."
     if [ "$SIN_CACHE" -eq 1 ]; then
@@ -134,20 +131,24 @@ else
     else
         docker compose "${ARCHIVOS_COMPOSE[@]}" build
     fi
-    echo ""
-    echo ">>> Levantando servicios..."
-    docker compose "${ARCHIVOS_COMPOSE[@]}" up -d
 fi
 
 # ---------------------------------------------------------------------------
-# 4. Sincronizar la base de datos
+# 4. Base de datos primero
 # ---------------------------------------------------------------------------
-# Esto es lo que faltaba: los scripts de /docker-entrypoint-initdb.d solo corren
-# con el volumen vacio, asi que un despliegue existente se quedaba con las
-# tablas y los procedimientos del dia que se creo.
+# Solo MariaDB: el backend no debe arrancar hasta que las credenciales y el
+# esquema esten al dia. Antes se levantaba todo junto; si el backend no
+# llegaba a "healthy" (contraseña desalineada, esquema viejo), `up -d` fallaba,
+# set -e cortaba el script y la sincronizacion que lo habria arreglado nunca
+# corria.
+echo ""
+echo ">>> Levantando MariaDB..."
+docker compose "${ARCHIVOS_COMPOSE[@]}" up -d mariadb
+
 echo ""
 echo ">>> Esperando a que MariaDB este lista..."
 contenedor_db=$(docker compose "${ARCHIVOS_COMPOSE[@]}" ps -q mariadb)
+estado="starting"
 for _ in $(seq 1 60); do
     estado=$(docker inspect --format '{{.State.Health.Status}}' "$contenedor_db" 2>/dev/null || echo "starting")
     [ "$estado" = "healthy" ] && break
@@ -160,14 +161,25 @@ if [ "$estado" != "healthy" ]; then
     exit 1
 fi
 
+# Tablas, migraciones, procedimientos y la contraseña del usuario de la
+# aplicacion (los scripts de /docker-entrypoint-initdb.d solo corren con el
+# volumen vacio, asi que un despliegue existente se quedaba desalineado).
 echo ""
 ./init-db/sincronizar-base-de-datos.sh
 
-# El backend siembra el catalogo, el superusuario y los semestres al arrancar.
-# Se reinicia para que esa siembra corra contra el esquema ya actualizado.
+# ---------------------------------------------------------------------------
+# 5. Backend y frontend
+# ---------------------------------------------------------------------------
+# El backend siembra el catalogo, el superusuario y los semestres al arrancar,
+# ya contra el esquema actualizado. --force-recreate para que un backend que
+# quedo en bucle de reinicios con la contraseña vieja arranque limpio.
 echo ""
-echo ">>> Reiniciando el backend sobre el esquema actualizado..."
-docker compose "${ARCHIVOS_COMPOSE[@]}" restart backend
+echo ">>> Levantando backend y frontend..."
+if ! docker compose "${ARCHIVOS_COMPOSE[@]}" up -d --force-recreate backend frontend; then
+    echo "ERROR: el backend no arranco. Revisa:" >&2
+    echo "  docker compose logs backend" >&2
+    exit 1
+fi
 
 echo ""
 echo "=== Despliegue completado ==="

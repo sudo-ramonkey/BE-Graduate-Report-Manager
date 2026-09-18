@@ -30,10 +30,12 @@ fi
 # shellcheck disable=SC1091
 set -a; . ./.env; set +a
 
-if [ -z "${MARIADB_ROOT_PASSWORD:-}" ]; then
-    echo "ERROR: MARIADB_ROOT_PASSWORD no esta definido en .env" >&2
-    exit 1
-fi
+for variable in MARIADB_ROOT_PASSWORD DATABASE_USER DATABASE_PASSWORD; do
+    if [ -z "${!variable:-}" ]; then
+        echo "ERROR: $variable no esta definido en .env" >&2
+        exit 1
+    fi
+done
 
 # Los objetos llevan el prefijo 'residencias.' explicito, asi que la base de
 # datos por defecto de la conexion solo importa para los procedimientos.
@@ -51,6 +53,34 @@ ejecutar_sql() {
         -e MYSQL_PWD="$MARIADB_ROOT_PASSWORD" \
         mariadb mariadb -u root "$@"
 }
+
+# --- 0. Credenciales -------------------------------------------------------
+# MariaDB solo lee MARIADB_ROOT_PASSWORD / MARIADB_PASSWORD la primera vez,
+# con el volumen vacio. Si el .env cambio despues (se regenero, se edito a
+# mano, se copio de otra maquina), el volumen conserva las contraseñas viejas
+# y el backend muere con "Access denied ... (using password: YES)".
+if ! ejecutar_sql -e "SELECT 1" > /dev/null 2>&1; then
+    cat >&2 <<EOF
+ERROR: MariaDB rechaza la contraseña root de .env (MARIADB_ROOT_PASSWORD).
+
+El volumen de datos se creo con otro .env y conserva aquella contraseña.
+Opciones:
+  a) Poner en .env la contraseña root con la que se creo el volumen.
+  b) Si no hay datos que conservar, borrar el volumen y desplegar de nuevo:
+       docker compose down -v && ./desplegar.sh
+EOF
+    exit 1
+fi
+
+# Con root funcionando, el usuario de la aplicacion se alinea con .env. Es
+# idempotente: si la contraseña ya coincidia, no cambia nada.
+echo ">>> Alineando el usuario '$DATABASE_USER' con .env..."
+ejecutar_sql <<EOSQL
+CREATE USER IF NOT EXISTS '$DATABASE_USER'@'%' IDENTIFIED BY '$DATABASE_PASSWORD';
+ALTER USER '$DATABASE_USER'@'%' IDENTIFIED BY '$DATABASE_PASSWORD';
+GRANT SELECT, INSERT, UPDATE, DELETE, EXECUTE, SHOW VIEW ON \`$BASE_DATOS\`.* TO '$DATABASE_USER'@'%';
+FLUSH PRIVILEGES;
+EOSQL
 
 # --- 1. Tablas -------------------------------------------------------------
 # Crea solo las que falten. Nunca modifica una tabla existente; para eso estan
