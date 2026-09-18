@@ -56,6 +56,28 @@ if [ ! -f .env ]; then
         exit 1
     fi
 
+    # El volumen se nombra por el proyecto de compose, que por defecto es el
+    # nombre del directorio. Un segundo clon en otra carpeta con el mismo
+    # nombre reutiliza la base de datos del primero, que conserva las
+    # contraseñas de aquel .env: con secretos nuevos, nada podria conectarse.
+    proyecto=$(docker compose config 2>/dev/null | sed -n 's/^name: //p' | head -1)
+    volumen="${proyecto}_datos_mariadb"
+    if [ -n "$proyecto" ] && docker volume inspect "$volumen" > /dev/null 2>&1; then
+        cat >&2 <<EOF
+ERROR: no hay .env, pero ya existe el volumen de datos '$volumen'
+(probablemente de un clon anterior de este repositorio en otra carpeta).
+Ese volumen conserva las contraseñas de aquel .env; generar uno nuevo con
+secretos aleatorios dejaria al backend sin acceso a la base de datos.
+
+Opciones:
+  a) Conservar los datos: copiar aqui el .env del clon anterior, p. ej.
+       cp ../ruta/al/clon-anterior/BE-Graduate-Report-Manager/.env .
+  b) Si no hay datos que conservar, borrar el volumen y desplegar de nuevo:
+       docker compose down -v && ./desplegar.sh
+EOF
+        exit 1
+    fi
+
     echo ""
     echo ">>> No hay .env: generando uno con secretos aleatorios..."
 

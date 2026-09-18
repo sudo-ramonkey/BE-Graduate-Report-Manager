@@ -59,13 +59,17 @@ ejecutar_sql() {
 # con el volumen vacio. Si el .env cambio despues (se regenero, se edito a
 # mano, se copio de otra maquina), el volumen conserva las contraseñas viejas
 # y el backend muere con "Access denied ... (using password: YES)".
-if ! ejecutar_sql -e "SELECT 1" > /dev/null 2>&1; then
+if ! error_root=$(ejecutar_sql -e "SELECT 1" 2>&1 > /dev/null); then
     cat >&2 <<EOF
 ERROR: MariaDB rechaza la contraseña root de .env (MARIADB_ROOT_PASSWORD).
+  $error_root
 
 El volumen de datos se creo con otro .env y conserva aquella contraseña.
+Suele pasar al clonar el repositorio de nuevo en otra carpeta con el mismo
+nombre: el clon nuevo genera su .env y reutiliza la base de datos del viejo.
 Opciones:
-  a) Poner en .env la contraseña root con la que se creo el volumen.
+  a) Conservar los datos: copiar aqui el .env con el que se creo el volumen
+     (el del clon anterior) y volver a ejecutar ./desplegar.sh
   b) Si no hay datos que conservar, borrar el volumen y desplegar de nuevo:
        docker compose down -v && ./desplegar.sh
 EOF
